@@ -20,6 +20,7 @@ on:
   push:
 
 jobs:
+
   push_to_registry:
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-latest
@@ -32,6 +33,7 @@ jobs:
           - 5000:5000
 
     steps:
+
     - uses: actions/checkout@v2
       with:
         # Always clone the full depth so git-describe works.
@@ -49,24 +51,20 @@ jobs:
         pip install -U setuptools wheel twine
 
     - name: Install package dependencies
-      run: |
-        python setup.py install
+      run: python setup.py install
 
     - name: Build distribution 📦
-      run: |
-        python setup.py sdist bdist_wheel
+      run: python setup.py sdist bdist_wheel
 
     - name: Check distribution 📦
-      run: |
-        twine check dist/*
+      run: twine check dist/*
 
 #    - name: Check the docker image
 #      run: |
 #        make image-test
 
     - name: Copy into docker
-      run: |
-        cp dist/* ./docker/
+      run: cp dist/* ./docker/
 
     - name: Docker meta
       id: docker_meta
@@ -111,5 +109,4 @@ jobs:
         labels: ${{ steps.docker_meta.outputs.labels }}
 
     - name: Inspect
-      run: |
-        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
+      run: docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
