@@ -18,8 +18,6 @@ name: Build and publish
 
 on:
   push:
-    #branches:
-    #  - main
 
 jobs:
 
@@ -58,12 +56,14 @@ jobs:
         twine check dist/*
 
     - name: Publish to Test PyPI
+      if: github.event_name != 'pull_request' && github.repository == 'mithro/action-includes' && github.ref == 'refs/heads/master'
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
       run: twine upload --skip-existing --repository testpypi dist/*
 
     - name: Publish to PyPI
+      if: github.event_name != 'pull_request' && github.repository == 'mithro/action-includes' && github.ref == 'refs/heads/master'
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -88,6 +88,9 @@ jobs:
         ports:
           - 5000:5000
 
+    env:
+      IMG_NAME: mithro/actions-includes
+
     steps:
 
     - uses: actions/checkout@v2
@@ -98,46 +101,30 @@ jobs:
         name: wheel-3.9
         path: docker
 
-    - name: Docker meta
-      id: docker_meta
-      uses: crazy-max/ghaction-docker-meta@v1
-      with:
-        images: ghcr.io/mithro/actions-includes/image,localhost:5000/mithro/actions-includes
-#        images: localhost:5000/mithro/actions-includes
-        tag-sha: true
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-      with:
-        driver-opts: network=host
+    - name: Build
+      env:
+        DOCKER_BUILDKIT: 1
+      run: |
+        docker build -t ghcr.io/${IMG_NAME}/image ./docker
 
 #    - name: Check the docker image
 #      run: |
 #        make image-test
 
+    - name: Inspect
+      run: |
+        docker tag ghcr.io/${IMG_NAME}/image localhost:5000/${IMG_NAME}:latest
+        docker push localhost:5000/${IMG_NAME}:latest
+        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
+
     - name: Login to GHCR
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && github.repository == 'mithro/action-includes' && github.ref == 'refs/heads/master'
       uses: docker/login-action@v1
       with:
         username: ${{ github.actor }}
         password: ${{ secrets.GHA_CR_TOKEN }}
         registry: ghcr.io
 
-#    - name: Login to local registry
-#      uses: docker/login-action@v1
-#      with:
-#        registry: localhost:5000
-
-    - name: Build and push
-      uses: docker/build-push-action@v2
-      id: docker_build
-      with:
-        context: docker
-        push: true
-        tags: |
-          ${{ steps.docker_meta.outputs.tags }}
-          localhost:5000/mithro/actions-includes:latest
-        labels: ${{ steps.docker_meta.outputs.labels }}
-
-    - name: Inspect
-      run: docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
+    - name: Push
+      if: github.event_name != 'pull_request' && github.repository == 'mithro/action-includes' && github.ref == 'refs/heads/master'
+      run: docker push ghcr.io/${IMG_NAME}/image
